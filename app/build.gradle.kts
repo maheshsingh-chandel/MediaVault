@@ -7,11 +7,13 @@ plugins {
 dependencies {
     implementation(project(":core"))
     implementation(project(":database"))
+    implementation(project(":scanner"))
     implementation(project(":ui"))
 
     implementation(compose.desktop.currentOs)
     implementation("org.jetbrains.exposed:exposed-jdbc:1.3.0")
     implementation("io.insert-koin:koin-core:4.1.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
 }
 
 compose.desktop {

@@ -23,6 +23,7 @@ MediaVault/
 ├── app/        # Application entry point, Compose window, DI startup
 ├── core/       # Domain models and repository interfaces
 ├── database/   # SQLite initialization, Exposed tables, repository implementations
+├── scanner/    # Mounted-drive discovery and recursive media indexing
 ├── ui/         # Compose UI screens and navigation
 └── AGENTS.md   # Architecture and contribution rules for coding agents
 ```
@@ -54,10 +55,14 @@ MediaVault/
   - Index on `mediaType`
 - Repository pattern for media files
 - Koin-based dependency injection
+- Automatic mounted-drive detection
+- Recursive media scanning with `Files.walkFileTree`
+- Graceful handling for inaccessible folders
+- Live dashboard scan progress
+- Coroutine-backed scanning so the UI remains responsive
 
 ## Not Implemented Yet
 
-- Media folder scanning
 - Thumbnail generation
 - Image preview
 - Video playback
@@ -115,6 +120,7 @@ MediaVault follows a Clean Architecture-style module boundary:
 
 - `core` contains domain models and repository contracts.
 - `database` implements persistence using SQLite and Exposed.
+- `scanner` implements mounted-drive discovery and recursive indexing.
 - `ui` contains Compose UI code.
 - `app` wires everything together and starts the desktop application.
 

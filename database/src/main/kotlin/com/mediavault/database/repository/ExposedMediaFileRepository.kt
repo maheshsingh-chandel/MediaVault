@@ -65,4 +65,28 @@ class ExposedMediaFileRepository(
             row[indexedAt] = mediaFile.indexedAt.toEpochMilli()
         }[MediaFilesTable.id]
     }
+
+    override fun saveOrIgnore(mediaFile: MediaFile): Boolean = transaction(database) {
+        val exists = MediaFilesTable
+            .selectAll()
+            .where { MediaFilesTable.path eq mediaFile.path }
+            .limit(1)
+            .any()
+
+        if (exists) {
+            false
+        } else {
+            MediaFilesTable.insert { row ->
+                row[path] = mediaFile.path
+                row[filename] = mediaFile.filename
+                row[extension] = mediaFile.extension
+                row[mediaType] = mediaFile.mediaType.name
+                row[size] = mediaFile.size
+                row[createdDate] = mediaFile.createdDate.toEpochMilli()
+                row[modifiedDate] = mediaFile.modifiedDate.toEpochMilli()
+                row[indexedAt] = mediaFile.indexedAt.toEpochMilli()
+            }
+            true
+        }
+    }
 }

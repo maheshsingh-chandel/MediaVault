@@ -10,4 +10,5 @@ interface MediaFileRepository {
     fun getStatistics(): MediaStatistics
     fun list(limit: Int = 100, offset: Long = 0): List<MediaFile>
     fun save(mediaFile: MediaFile): Long
+    fun saveOrIgnore(mediaFile: MediaFile): Boolean
 }

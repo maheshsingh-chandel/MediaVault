@@ -4,6 +4,7 @@
 
 - Keep domain models and repository interfaces in `core`.
 - Keep SQLite, Exposed tables, and repository implementations in `database`.
+- Keep mounted-drive detection and recursive indexing in `scanner`.
 - Keep Compose screens and UI state mapping in `ui`.
 - Keep application startup, dependency wiring, and the Compose window entry point in `app`.
 - Inner layers must not depend on outer layers.
