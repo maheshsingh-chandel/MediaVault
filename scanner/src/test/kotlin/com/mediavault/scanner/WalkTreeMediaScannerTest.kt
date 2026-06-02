@@ -3,6 +3,7 @@ package com.mediavault.scanner
 import com.mediavault.core.model.MediaFile
 import com.mediavault.core.model.MediaStatistics
 import com.mediavault.core.model.MediaType
+import com.mediavault.core.repository.MediaFileQuery
 import com.mediavault.core.repository.MediaFileRepository
 import java.nio.file.Path
 import kotlin.io.path.createDirectories
@@ -83,6 +84,8 @@ private class FakeMediaFileRepository : MediaFileRepository {
 
     override fun count(): Long = saved.size.toLong()
 
+    override fun count(query: MediaFileQuery): Long = search(query).size.toLong()
+
     override fun countByType(mediaType: MediaType): Long = saved.count { it.mediaType == mediaType }.toLong()
 
     override fun getStatistics(): MediaStatistics = MediaStatistics(
@@ -95,6 +98,11 @@ private class FakeMediaFileRepository : MediaFileRepository {
     override fun list(limit: Int, offset: Long): List<MediaFile> = saved
         .drop(offset.toInt())
         .take(limit)
+
+    override fun search(query: MediaFileQuery): List<MediaFile> = saved
+        .filter { it.filename.contains(query.searchText, ignoreCase = true) }
+        .drop(query.offset.toInt())
+        .take(query.limit)
 
     override fun save(mediaFile: MediaFile): Long {
         saved += mediaFile

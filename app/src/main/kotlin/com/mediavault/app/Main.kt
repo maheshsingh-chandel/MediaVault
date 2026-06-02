@@ -59,6 +59,7 @@ fun main() {
 
             MediaVaultApp(
                 initialStatistics = repository.getStatistics(),
+                mediaFileRepository = repository,
                 scanProgress = progress,
                 loadStatistics = repository::getStatistics,
                 onStartScan = {
