@@ -1,0 +1,17 @@
+package com.mediavault.database.table
+
+import org.jetbrains.exposed.v1.core.Table
+
+object MediaFilesTable : Table("media_files") {
+    val id = long("id").autoIncrement()
+    val path = varchar("path", 4096).uniqueIndex("idx_media_files_path_unique")
+    val filename = varchar("filename", 512).index("idx_media_files_filename")
+    val extension = varchar("extension", 64)
+    val mediaType = varchar("media_type", 32).index("idx_media_files_media_type")
+    val size = long("size")
+    val createdDate = long("created_date")
+    val modifiedDate = long("modified_date")
+    val indexedAt = long("indexed_at")
+
+    override val primaryKey = PrimaryKey(id)
+}
