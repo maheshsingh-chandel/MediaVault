@@ -2,9 +2,7 @@
 
 MediaVault is a Kotlin Compose Desktop application for managing a local media library.
 
-This initial version sets up the application foundation: Clean Architecture modules, SQLite persistence, Exposed ORM, Koin dependency injection, and a basic desktop UI with Dashboard, Library, and Settings screens.
-
-Scanning, thumbnails, and playback are intentionally not implemented yet.
+The project currently includes a desktop UI, SQLite persistence, recursive scanning, lazy thumbnails, and metadata extraction. Playback is intentionally not implemented yet.
 
 ## Tech Stack
 
@@ -20,58 +18,39 @@ Scanning, thumbnails, and playback are intentionally not implemented yet.
 
 ```text
 MediaVault/
-├── app/        # Application entry point, Compose window, DI startup
-├── core/       # Domain models and repository interfaces
-├── database/   # SQLite initialization, Exposed tables, repository implementations
-├── scanner/    # Mounted-drive discovery and recursive media indexing
-├── thumbnail/  # Async thumbnail generation and cache management
-├── ui/         # Compose UI screens and navigation
-└── AGENTS.md   # Architecture and contribution rules for coding agents
+|-- app/        # Application entry point, Compose window, DI startup
+|-- core/       # Domain models and repository interfaces
+|-- database/   # SQLite initialization, Exposed tables, repository implementations
+|-- metadata/   # Image, video, and audio metadata extraction
+|-- scanner/    # Mounted-drive discovery and recursive media indexing
+|-- thumbnail/  # Async thumbnail generation and cache management
+|-- ui/         # Compose UI screens and navigation
+`-- AGENTS.md   # Architecture and contribution rules for coding agents
 ```
 
 ## Current Features
 
 - Compose Desktop application shell
-- Dashboard screen with media statistics:
-  - Total files
-  - Images
-  - Videos
-  - Audio
-- Library screen placeholder
+- Dashboard screen with media statistics
+- Library screen with search, sorting, pagination, thumbnails, actions, and details
 - Settings screen placeholder
 - SQLite database initialization on startup
-- `media_files` table with:
-  - `id`
-  - `path`
-  - `filename`
-  - `extension`
-  - `mediaType`
-  - `size`
-  - `createdDate`
-  - `modifiedDate`
-  - `indexedAt`
-- Database indexes:
-  - Unique index on `path`
-  - Index on `filename`
-  - Index on `mediaType`
+- `media_files` table with metadata JSON storage
 - Repository pattern for media files
 - Koin-based dependency injection
 - Automatic mounted-drive detection
 - Recursive media scanning with `Files.walkFileTree`
 - Graceful handling for inaccessible folders
 - Live dashboard scan progress
-- Coroutine-backed scanning so the UI remains responsive
 - Lazy thumbnail generation for Library rows
-- Image thumbnails generated with `ImageIO`
-- Video thumbnails generated from the 10-second frame through `ffmpeg`
-- Thumbnail cache at `%APPDATA%\MediaVault\thumbnails`
+- Metadata extraction stored as JSON on media records
 
 ## Not Implemented Yet
 
 - Image preview
 - Video playback
 - Audio playback
-- File metadata refresh jobs
+- Metadata refresh jobs
 
 ## Requirements
 
@@ -136,12 +115,40 @@ SHA256(path).jpg
 
 Existing thumbnails are reused and are never regenerated. Video thumbnails require `ffmpeg` to be available on the system path; if it is missing or cannot read a file, MediaVault records the thumbnail as failed and keeps the app running.
 
+## Metadata
+
+MediaVault stores extracted metadata as JSON in SQLite.
+
+Images include:
+
+- Width and height
+- EXIF fields
+- Camera make and model
+- GPS latitude and longitude, when available
+
+Videos include:
+
+- Duration
+- Resolution
+- Codec
+- Bitrate
+
+Audio includes:
+
+- Artist
+- Album
+- Genre
+- Duration
+
+Video metadata uses `ffprobe` when available on the system path. If probing fails, the metadata JSON records a failed status instead of crashing the app.
+
 ## Architecture
 
 MediaVault follows a Clean Architecture-style module boundary:
 
 - `core` contains domain models and repository contracts.
 - `database` implements persistence using SQLite and Exposed.
+- `metadata` implements JSON metadata extraction.
 - `scanner` implements mounted-drive discovery and recursive indexing.
 - `thumbnail` implements asynchronous thumbnail generation and cache lookup.
 - `ui` contains Compose UI code.
@@ -157,11 +164,9 @@ Run all available checks:
 gradle build
 ```
 
-Current tests are intentionally small because this version only establishes the project foundation.
-
 ## Development Notes
 
-- Do not implement scanning, thumbnails, or playback until those features are explicitly scoped.
+- Do not implement playback until it is explicitly scoped.
 - Keep domain code framework-free.
 - Register dependencies through Koin modules.
 - Keep database schema changes in the `database` module.

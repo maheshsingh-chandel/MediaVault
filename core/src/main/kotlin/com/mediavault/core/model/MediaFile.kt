@@ -12,4 +12,5 @@ data class MediaFile(
     val createdDate: Instant,
     val modifiedDate: Instant,
     val indexedAt: Instant,
+    val metadataJson: String? = null,
 )

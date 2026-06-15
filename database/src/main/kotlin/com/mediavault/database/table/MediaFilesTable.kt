@@ -12,6 +12,7 @@ object MediaFilesTable : Table("media_files") {
     val createdDate = long("created_date")
     val modifiedDate = long("modified_date").index("idx_media_files_modified_date")
     val indexedAt = long("indexed_at")
+    val metadataJson = text("metadata_json").nullable()
 
     override val primaryKey = PrimaryKey(id)
 }

@@ -5,10 +5,12 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,7 +22,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -52,6 +53,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.mediavault.core.metadata.MetadataService
 import com.mediavault.core.model.MediaFile
 import com.mediavault.core.repository.MediaFileQuery
 import com.mediavault.core.repository.MediaFileRepository
@@ -76,6 +78,7 @@ import org.jetbrains.skia.Image as SkiaImage
 fun LibraryScreen(
     repository: MediaFileRepository,
     thumbnailService: ThumbnailService,
+    metadataService: MetadataService,
 ) {
     var searchText by remember { mutableStateOf("") }
     var sort by remember { mutableStateOf(MediaFileSort.MODIFIED_DATE) }
@@ -84,6 +87,7 @@ fun LibraryScreen(
     var files by remember { mutableStateOf<List<MediaFile>>(emptyList()) }
     var total by remember { mutableLongStateOf(0) }
     var isLoading by remember { mutableStateOf(false) }
+    var selectedFile by remember { mutableStateOf<MediaFile?>(null) }
     val scope = rememberCoroutineScope()
 
     fun reload() {
@@ -160,8 +164,21 @@ fun LibraryScreen(
         LibraryTable(
             files = files,
             thumbnailService = thumbnailService,
+            onDetails = { selectedFile = it },
             modifier = Modifier.weight(1f),
         )
+
+        selectedFile?.let { file ->
+            DetailsScreen(
+                mediaFile = file,
+                metadataService = metadataService,
+                onMetadataLoaded = { loadedFile ->
+                    selectedFile = loadedFile
+                    files = files.map { if (it.id == loadedFile.id) loadedFile else it }
+                },
+                onClose = { selectedFile = null },
+            )
+        }
 
         PaginationControls(
             page = page,
@@ -289,6 +306,7 @@ private fun DirectionDropdown(
 private fun LibraryTable(
     files: List<MediaFile>,
     thumbnailService: ThumbnailService,
+    onDetails: (MediaFile) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Card(
@@ -334,6 +352,7 @@ private fun LibraryTable(
                         LibraryRow(
                             file = file,
                             thumbnailService = thumbnailService,
+                            onDetails = onDetails,
                         )
                     }
                 }
@@ -367,7 +386,7 @@ private fun LibraryHeader() {
         HeaderCell("Size", 100)
         HeaderCell("Modified", 180)
         HeaderCell("Path", 420)
-        HeaderCell("Actions", 320)
+        HeaderCell("Actions", 410)
     }
 }
 
@@ -389,6 +408,7 @@ private fun HeaderCell(
 private fun LibraryRow(
     file: MediaFile,
     thumbnailService: ThumbnailService,
+    onDetails: (MediaFile) -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -407,9 +427,15 @@ private fun LibraryRow(
         BodyCell(formatDate(file.modifiedDate), 180)
         BodyCell(file.path, 420)
         Row(
-            modifier = Modifier.width(320.dp),
+            modifier = Modifier.width(410.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            OutlinedButton(
+                onClick = { onDetails(file) },
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+            ) {
+                Text("Details")
+            }
             OutlinedButton(
                 onClick = { openFile(file.path) },
                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
@@ -428,6 +454,79 @@ private fun LibraryRow(
             ) {
                 Text("Copy Path")
             }
+        }
+    }
+}
+
+@Composable
+private fun DetailsScreen(
+    mediaFile: MediaFile,
+    metadataService: MetadataService,
+    onMetadataLoaded: (MediaFile) -> Unit,
+    onClose: () -> Unit,
+) {
+    var displayedFile by remember(mediaFile.id) { mutableStateOf(mediaFile) }
+    var isLoading by remember(mediaFile.id) { mutableStateOf(mediaFile.metadataJson.isNullOrBlank()) }
+
+    LaunchedEffect(mediaFile.id) {
+        if (mediaFile.metadataJson.isNullOrBlank()) {
+            isLoading = true
+            val loadedFile = metadataService.extractAndStore(mediaFile)
+            displayedFile = loadedFile
+            onMetadataLoaded(loadedFile)
+            isLoading = false
+        }
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(260.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        ),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column {
+                    Text(
+                        text = "Details",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = displayedFile.filename,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                OutlinedButton(onClick = onClose) {
+                    Text("Close")
+                }
+            }
+
+            if (isLoading) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
+
+            Text(
+                text = displayedFile.metadataJson ?: "Metadata is not available.",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState()),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
@@ -599,4 +698,4 @@ private val SortDirection.label: String
     }
 
 private const val PAGE_SIZE = 100
-private val TABLE_WIDTH = 1_538.dp
+private val TABLE_WIDTH = 1_628.dp

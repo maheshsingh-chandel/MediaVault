@@ -9,6 +9,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 class DatabaseInitializer(
     private val config: DatabaseConfig,
 ) {
+    @Suppress("DEPRECATION")
     fun initialize(): Database {
         config.databasePath.parent?.createDirectories()
 
@@ -18,7 +19,7 @@ class DatabaseInitializer(
         )
 
         transaction(database) {
-            SchemaUtils.create(MediaFilesTable)
+            SchemaUtils.createMissingTablesAndColumns(MediaFilesTable)
         }
 
         return database

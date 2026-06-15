@@ -17,6 +17,7 @@ import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.jetbrains.exposed.v1.jdbc.update
 
 class ExposedMediaFileRepository(
     private val database: Database,
@@ -46,6 +47,15 @@ class ExposedMediaFileRepository(
         audio = countByType(MediaType.AUDIO),
     )
 
+    override fun findById(id: Long): MediaFile? = transaction(database) {
+        MediaFilesTable
+            .selectAll()
+            .where { MediaFilesTable.id eq id }
+            .limit(1)
+            .map(::toMediaFile)
+            .firstOrNull()
+    }
+
     override fun list(limit: Int, offset: Long): List<MediaFile> = transaction(database) {
         MediaFilesTable
             .selectAll()
@@ -74,6 +84,7 @@ class ExposedMediaFileRepository(
             row[createdDate] = mediaFile.createdDate.toEpochMilli()
             row[modifiedDate] = mediaFile.modifiedDate.toEpochMilli()
             row[indexedAt] = mediaFile.indexedAt.toEpochMilli()
+            row[metadataJson] = mediaFile.metadataJson
         }[MediaFilesTable.id]
     }
 
@@ -96,9 +107,16 @@ class ExposedMediaFileRepository(
                 row[createdDate] = mediaFile.createdDate.toEpochMilli()
                 row[modifiedDate] = mediaFile.modifiedDate.toEpochMilli()
                 row[indexedAt] = mediaFile.indexedAt.toEpochMilli()
+                row[metadataJson] = mediaFile.metadataJson
             }
             true
         }
+    }
+
+    override fun updateMetadata(id: Long, metadataJson: String): Boolean = transaction(database) {
+        MediaFilesTable.update({ MediaFilesTable.id eq id }) { row ->
+            row[MediaFilesTable.metadataJson] = metadataJson
+        } > 0
     }
 
     private fun toMediaFile(row: ResultRow): MediaFile = MediaFile(
@@ -111,6 +129,7 @@ class ExposedMediaFileRepository(
         createdDate = Instant.ofEpochMilli(row[MediaFilesTable.createdDate]),
         modifiedDate = Instant.ofEpochMilli(row[MediaFilesTable.modifiedDate]),
         indexedAt = Instant.ofEpochMilli(row[MediaFilesTable.indexedAt]),
+        metadataJson = row[MediaFilesTable.metadataJson],
     )
 
     private fun org.jetbrains.exposed.v1.jdbc.Query.applySearch(searchText: String) = apply {

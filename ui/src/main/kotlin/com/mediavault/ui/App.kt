@@ -10,6 +10,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.mediavault.core.metadata.MetadataService
 import com.mediavault.core.model.MediaStatistics
 import com.mediavault.core.repository.MediaFileRepository
 import com.mediavault.core.scanner.ScanProgress
@@ -31,6 +32,7 @@ fun MediaVaultApp(
     initialStatistics: MediaStatistics,
     mediaFileRepository: MediaFileRepository,
     thumbnailService: ThumbnailService,
+    metadataService: MetadataService,
     scanProgress: ScanProgress,
     loadStatistics: () -> MediaStatistics,
     onStartScan: () -> Unit,
@@ -59,6 +61,7 @@ fun MediaVaultApp(
                     AppScreen.LIBRARY -> LibraryScreen(
                         repository = mediaFileRepository,
                         thumbnailService = thumbnailService,
+                        metadataService = metadataService,
                     )
                     AppScreen.SETTINGS -> SettingsScreen()
                 }

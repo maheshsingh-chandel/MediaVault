@@ -95,6 +95,8 @@ private class FakeMediaFileRepository : MediaFileRepository {
         audio = countByType(MediaType.AUDIO),
     )
 
+    override fun findById(id: Long): MediaFile? = saved.firstOrNull { it.id == id }
+
     override fun list(limit: Int, offset: Long): List<MediaFile> = saved
         .drop(offset.toInt())
         .take(limit)
@@ -115,6 +117,13 @@ private class FakeMediaFileRepository : MediaFileRepository {
             return false
         }
         saved += mediaFile
+        return true
+    }
+
+    override fun updateMetadata(id: Long, metadataJson: String): Boolean {
+        val index = saved.indexOfFirst { it.id == id }
+        if (index < 0) return false
+        saved[index] = saved[index].copy(metadataJson = metadataJson)
         return true
     }
 }

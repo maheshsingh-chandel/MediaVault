@@ -4,6 +4,7 @@
 
 - Keep domain models and repository interfaces in `core`.
 - Keep SQLite, Exposed tables, and repository implementations in `database`.
+- Keep media metadata extraction in `metadata`.
 - Keep mounted-drive detection and recursive indexing in `scanner`.
 - Keep thumbnail generation and cache management in `thumbnail`.
 - Keep Compose screens and UI state mapping in `ui`.

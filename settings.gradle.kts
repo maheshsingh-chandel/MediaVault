@@ -19,6 +19,7 @@ rootProject.name = "MediaVault"
 include(":app")
 include(":core")
 include(":database")
+include(":metadata")
 include(":scanner")
 include(":thumbnail")
 include(":ui")

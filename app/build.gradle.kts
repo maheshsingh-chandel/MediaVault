@@ -7,6 +7,7 @@ plugins {
 dependencies {
     implementation(project(":core"))
     implementation(project(":database"))
+    implementation(project(":metadata"))
     implementation(project(":scanner"))
     implementation(project(":thumbnail"))
     implementation(project(":ui"))

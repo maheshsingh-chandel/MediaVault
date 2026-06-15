@@ -70,6 +70,16 @@ class ExposedMediaFileRepositoryIntegrationTest {
         assertEquals(1, repository.count())
     }
 
+    @Test
+    fun updatesAndLoadsMetadataJson() {
+        val repository = createRepository()
+        val id = repository.save(mediaFile(path = "C:/media/metadata.jpg", filename = "metadata.jpg"))
+
+        assertTrue(repository.updateMetadata(id, """{"image":{"width":100}}"""))
+
+        assertEquals("""{"image":{"width":100}}""", repository.findById(id)?.metadataJson)
+    }
+
     private fun createRepository(): ExposedMediaFileRepository {
         val databaseFile = createTempFile("mediavault-repository", ".db").toFile()
         databaseFile.deleteOnExit()
