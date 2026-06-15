@@ -9,12 +9,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.mediavault.core.repository.MediaFileRepository
 import com.mediavault.core.scanner.MediaScanner
+import com.mediavault.core.thumbnail.ThumbnailService
 import com.mediavault.database.DatabaseConfig
 import com.mediavault.database.DatabaseInitializer
 import com.mediavault.database.repository.ExposedMediaFileRepository
 import com.mediavault.scanner.DefaultMountedDriveProvider
 import com.mediavault.scanner.MountedDriveProvider
 import com.mediavault.scanner.WalkTreeMediaScanner
+import com.mediavault.thumbnail.DefaultThumbnailService
 import com.mediavault.ui.MediaVaultApp
 import org.jetbrains.exposed.v1.jdbc.Database
 import kotlinx.coroutines.CoroutineScope
@@ -37,12 +39,14 @@ fun main() {
 
     val repository = koin.get<MediaFileRepository>()
     val scanner = koin.get<MediaScanner>()
+    val thumbnailService = koin.get<ThumbnailService>()
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     application {
         Window(
             onCloseRequest = {
                 appScope.cancel()
+                thumbnailService.close()
                 exitApplication()
             },
             title = "MediaVault",
@@ -60,6 +64,7 @@ fun main() {
             MediaVaultApp(
                 initialStatistics = repository.getStatistics(),
                 mediaFileRepository = repository,
+                thumbnailService = thumbnailService,
                 scanProgress = progress,
                 loadStatistics = repository::getStatistics,
                 onStartScan = {
@@ -80,4 +85,5 @@ private val appModule = module {
     single<MountedDriveProvider> { DefaultMountedDriveProvider() }
     single<MediaFileRepository> { ExposedMediaFileRepository(get<Database>()) }
     single<MediaScanner> { WalkTreeMediaScanner(get(), get()) }
+    single<ThumbnailService> { DefaultThumbnailService() }
 }

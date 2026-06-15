@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import com.mediavault.core.model.MediaStatistics
 import com.mediavault.core.repository.MediaFileRepository
 import com.mediavault.core.scanner.ScanProgress
+import com.mediavault.core.thumbnail.ThumbnailService
 import com.mediavault.ui.screen.DashboardScreen
 import com.mediavault.ui.screen.LibraryScreen
 import com.mediavault.ui.screen.SettingsScreen
@@ -29,6 +30,7 @@ enum class AppScreen {
 fun MediaVaultApp(
     initialStatistics: MediaStatistics,
     mediaFileRepository: MediaFileRepository,
+    thumbnailService: ThumbnailService,
     scanProgress: ScanProgress,
     loadStatistics: () -> MediaStatistics,
     onStartScan: () -> Unit,
@@ -54,7 +56,10 @@ fun MediaVaultApp(
                         scanProgress = scanProgress,
                         onStartScan = onStartScan,
                     )
-                    AppScreen.LIBRARY -> LibraryScreen(repository = mediaFileRepository)
+                    AppScreen.LIBRARY -> LibraryScreen(
+                        repository = mediaFileRepository,
+                        thumbnailService = thumbnailService,
+                    )
                     AppScreen.SETTINGS -> SettingsScreen()
                 }
             }

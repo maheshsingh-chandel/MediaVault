@@ -24,6 +24,7 @@ MediaVault/
 ├── core/       # Domain models and repository interfaces
 ├── database/   # SQLite initialization, Exposed tables, repository implementations
 ├── scanner/    # Mounted-drive discovery and recursive media indexing
+├── thumbnail/  # Async thumbnail generation and cache management
 ├── ui/         # Compose UI screens and navigation
 └── AGENTS.md   # Architecture and contribution rules for coding agents
 ```
@@ -60,10 +61,13 @@ MediaVault/
 - Graceful handling for inaccessible folders
 - Live dashboard scan progress
 - Coroutine-backed scanning so the UI remains responsive
+- Lazy thumbnail generation for Library rows
+- Image thumbnails generated with `ImageIO`
+- Video thumbnails generated from the 10-second frame through `ffmpeg`
+- Thumbnail cache at `%APPDATA%\MediaVault\thumbnails`
 
 ## Not Implemented Yet
 
-- Thumbnail generation
 - Image preview
 - Video playback
 - Audio playback
@@ -114,6 +118,24 @@ MediaVault initializes a SQLite database on startup at:
 
 The database schema is created automatically by Exposed.
 
+## Thumbnails
+
+Thumbnails are generated lazily when rows appear in the Library screen.
+
+Cached thumbnails are stored at:
+
+```text
+%APPDATA%\MediaVault\thumbnails
+```
+
+Thumbnail filenames use:
+
+```text
+SHA256(path).jpg
+```
+
+Existing thumbnails are reused and are never regenerated. Video thumbnails require `ffmpeg` to be available on the system path; if it is missing or cannot read a file, MediaVault records the thumbnail as failed and keeps the app running.
+
 ## Architecture
 
 MediaVault follows a Clean Architecture-style module boundary:
@@ -121,6 +143,7 @@ MediaVault follows a Clean Architecture-style module boundary:
 - `core` contains domain models and repository contracts.
 - `database` implements persistence using SQLite and Exposed.
 - `scanner` implements mounted-drive discovery and recursive indexing.
+- `thumbnail` implements asynchronous thumbnail generation and cache lookup.
 - `ui` contains Compose UI code.
 - `app` wires everything together and starts the desktop application.
 

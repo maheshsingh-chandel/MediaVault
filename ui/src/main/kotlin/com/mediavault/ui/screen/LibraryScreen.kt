@@ -1,9 +1,11 @@
 package com.mediavault.ui.screen
 
 import androidx.compose.foundation.HorizontalScrollbar
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -34,6 +37,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -42,6 +46,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.toComposeImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -50,19 +57,25 @@ import com.mediavault.core.repository.MediaFileQuery
 import com.mediavault.core.repository.MediaFileRepository
 import com.mediavault.core.repository.MediaFileSort
 import com.mediavault.core.repository.SortDirection
+import com.mediavault.core.thumbnail.ThumbnailService
+import com.mediavault.core.thumbnail.ThumbnailStatus
 import java.awt.Desktop
 import java.awt.Toolkit
 import java.awt.datatransfer.StringSelection
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.Path
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.jetbrains.skia.Image as SkiaImage
 
 @Composable
 fun LibraryScreen(
     repository: MediaFileRepository,
+    thumbnailService: ThumbnailService,
 ) {
     var searchText by remember { mutableStateOf("") }
     var sort by remember { mutableStateOf(MediaFileSort.MODIFIED_DATE) }
@@ -146,6 +159,7 @@ fun LibraryScreen(
 
         LibraryTable(
             files = files,
+            thumbnailService = thumbnailService,
             modifier = Modifier.weight(1f),
         )
 
@@ -274,6 +288,7 @@ private fun DirectionDropdown(
 @Composable
 private fun LibraryTable(
     files: List<MediaFile>,
+    thumbnailService: ThumbnailService,
     modifier: Modifier = Modifier,
 ) {
     Card(
@@ -316,7 +331,10 @@ private fun LibraryTable(
                         items = files,
                         key = { it.id },
                     ) { file ->
-                        LibraryRow(file)
+                        LibraryRow(
+                            file = file,
+                            thumbnailService = thumbnailService,
+                        )
                     }
                 }
             }
@@ -343,6 +361,7 @@ private fun LibraryHeader() {
             .padding(horizontal = 12.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        HeaderCell("Preview", 96)
         HeaderCell("Filename", 260)
         HeaderCell("Type", 90)
         HeaderCell("Size", 100)
@@ -367,7 +386,10 @@ private fun HeaderCell(
 }
 
 @Composable
-private fun LibraryRow(file: MediaFile) {
+private fun LibraryRow(
+    file: MediaFile,
+    thumbnailService: ThumbnailService,
+) {
     Row(
         modifier = Modifier
             .width(TABLE_WIDTH)
@@ -375,6 +397,10 @@ private fun LibraryRow(file: MediaFile) {
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        ThumbnailCell(
+            file = file,
+            thumbnailService = thumbnailService,
+        )
         BodyCell(file.filename, 260)
         BodyCell(file.mediaType.name.lowercase().replaceFirstChar { it.uppercase() }, 90)
         BodyCell(formatSize(file.size), 100)
@@ -384,15 +410,79 @@ private fun LibraryRow(file: MediaFile) {
             modifier = Modifier.width(320.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            OutlinedButton(onClick = { openFile(file.path) }) {
+            OutlinedButton(
+                onClick = { openFile(file.path) },
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+            ) {
                 Text("Open File")
             }
-            OutlinedButton(onClick = { openContainingFolder(file.path) }) {
+            OutlinedButton(
+                onClick = { openContainingFolder(file.path) },
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+            ) {
                 Text("Open Folder")
             }
-            OutlinedButton(onClick = { copyPath(file.path) }) {
+            OutlinedButton(
+                onClick = { copyPath(file.path) },
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+            ) {
                 Text("Copy Path")
             }
+        }
+    }
+}
+
+@Composable
+private fun ThumbnailCell(
+    file: MediaFile,
+    thumbnailService: ThumbnailService,
+) {
+    val states by thumbnailService.states.collectAsState()
+    val thumbnailState = states[file.path]
+    var imageBitmap by remember(file.path, thumbnailState?.path) {
+        mutableStateOf<ImageBitmap?>(null)
+    }
+
+    LaunchedEffect(file.path) {
+        thumbnailService.request(file)
+    }
+
+    LaunchedEffect(thumbnailState?.status, thumbnailState?.path) {
+        imageBitmap = if (thumbnailState?.status == ThumbnailStatus.READY) {
+            thumbnailState.path?.let { loadThumbnail(it) }
+        } else {
+            null
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .width(96.dp)
+            .height(64.dp)
+            .background(MaterialTheme.colorScheme.surfaceVariant),
+        contentAlignment = Alignment.Center,
+    ) {
+        val bitmap = imageBitmap
+        if (bitmap != null) {
+            Image(
+                bitmap = bitmap,
+                contentDescription = file.filename,
+                modifier = Modifier.size(96.dp, 64.dp),
+                contentScale = ContentScale.Crop,
+            )
+        } else {
+            Text(
+                text = when (thumbnailState?.status) {
+                    ThumbnailStatus.QUEUED,
+                    ThumbnailStatus.GENERATING -> "..."
+                    ThumbnailStatus.FAILED,
+                    ThumbnailStatus.UNSUPPORTED,
+                    null -> file.mediaType.name.take(1)
+                    ThumbnailStatus.READY -> ""
+                },
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
@@ -472,6 +562,12 @@ private fun copyPath(path: String) {
     }
 }
 
+private fun loadThumbnail(path: Path): ImageBitmap? = runCatching {
+    SkiaImage
+        .makeFromEncoded(Files.readAllBytes(path))
+        .toComposeImageBitmap()
+}.getOrNull()
+
 private fun formatDate(instant: java.time.Instant): String = DateTimeFormatter
     .ofPattern("yyyy-MM-dd HH:mm")
     .withZone(ZoneId.systemDefault())
@@ -503,4 +599,4 @@ private val SortDirection.label: String
     }
 
 private const val PAGE_SIZE = 100
-private val TABLE_WIDTH = 1_430.dp
+private val TABLE_WIDTH = 1_538.dp
