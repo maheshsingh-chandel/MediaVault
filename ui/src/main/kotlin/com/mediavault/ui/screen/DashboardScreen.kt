@@ -45,10 +45,50 @@ fun DashboardScreen(
             StatCard("Audio", statistics.audio, Modifier.weight(1f))
         }
 
+        if (statistics.totalFiles == 0L && !scanProgress.isScanning) {
+            FirstRunCard(onStartScan = onStartScan)
+        }
+
         ScanProgressCard(
             scanProgress = scanProgress,
             onStartScan = onStartScan,
         )
+    }
+}
+
+@Composable
+private fun FirstRunCard(
+    onStartScan: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+        ),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(18.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = "Start your media library",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+                Text(
+                    text = "Scan mounted drives to index media files, generate thumbnails, and enable search.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+            }
+            Button(onClick = onStartScan) {
+                Text("Scan drives")
+            }
+        }
     }
 }
 
