@@ -61,6 +61,7 @@ import com.mediavault.core.repository.MediaFileSort
 import com.mediavault.core.repository.SortDirection
 import com.mediavault.core.thumbnail.ThumbnailService
 import com.mediavault.core.thumbnail.ThumbnailStatus
+import com.mediavault.ui.viewer.MediaViewerWindow
 import java.awt.Desktop
 import java.awt.Toolkit
 import java.awt.datatransfer.StringSelection
@@ -89,6 +90,7 @@ fun LibraryScreen(
     var total by remember { mutableLongStateOf(0) }
     var isLoading by remember { mutableStateOf(false) }
     var selectedFile by remember { mutableStateOf<MediaFile?>(null) }
+    var viewerFile by remember { mutableStateOf<MediaFile?>(null) }
     val scope = rememberCoroutineScope()
 
     fun reload() {
@@ -166,8 +168,17 @@ fun LibraryScreen(
             files = files,
             thumbnailService = thumbnailService,
             onDetails = { selectedFile = it },
+            onOpen = { viewerFile = it },
             modifier = Modifier.weight(1f),
         )
+
+        viewerFile?.let { file ->
+            MediaViewerWindow(
+                mediaFile = file,
+                pageFiles = files,
+                onClose = { viewerFile = null },
+            )
+        }
 
         selectedFile?.let { file ->
             DetailsScreen(
@@ -308,6 +319,7 @@ private fun LibraryTable(
     files: List<MediaFile>,
     thumbnailService: ThumbnailService,
     onDetails: (MediaFile) -> Unit,
+    onOpen: (MediaFile) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Card(
@@ -354,6 +366,7 @@ private fun LibraryTable(
                             file = file,
                             thumbnailService = thumbnailService,
                             onDetails = onDetails,
+                            onOpen = onOpen,
                         )
                     }
                 }
@@ -410,6 +423,7 @@ private fun LibraryRow(
     file: MediaFile,
     thumbnailService: ThumbnailService,
     onDetails: (MediaFile) -> Unit,
+    onOpen: (MediaFile) -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -438,10 +452,10 @@ private fun LibraryRow(
                 Text("Details")
             }
             OutlinedButton(
-                onClick = { openFile(file.path) },
+                onClick = { onOpen(file) },
                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
             ) {
-                Text("Open File")
+                Text("Open")
             }
             OutlinedButton(
                 onClick = { openContainingFolder(file.path) },

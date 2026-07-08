@@ -23,6 +23,7 @@ MediaVault/
 |-- database/   # SQLite initialization, Exposed tables, repository implementations
 |-- metadata/   # Image, video, and audio metadata extraction
 |-- monitor/    # WatchService-based real-time filesystem monitoring
+|-- player/     # Media viewing, VLCJ playback adapters, playlist/slideshow logic
 |-- scanner/    # Mounted-drive discovery and recursive media indexing
 |-- thumbnail/  # Async thumbnail generation and cache management
 |-- ui/         # Compose UI screens and navigation
@@ -34,6 +35,7 @@ MediaVault/
 - Compose Desktop application shell
 - Dashboard screen with media statistics
 - Library screen with search, sorting, pagination, thumbnails, actions, and details
+- Media viewer for images, video, and audio
 - Settings screen placeholder
 - SQLite database initialization on startup
 - `media_files` table with metadata JSON storage
@@ -46,18 +48,19 @@ MediaVault/
 - Live dashboard scan progress
 - Lazy thumbnail generation for Library rows
 - Metadata extraction stored as JSON on media records
+- Image fullscreen viewing, zoom controls, and slideshow navigation
+- VLCJ-backed video playback with play, pause, seek, and fullscreen controls
+- Audio playlist controls with shuffle and repeat modes
 
 ## Not Implemented Yet
 
-- Image preview
-- Video playback
-- Audio playback
 - Metadata refresh jobs
 
 ## Requirements
 
 - JDK 21
 - Gradle, or a Gradle wrapper if one is added later
+- VLC installed locally for VLCJ video/audio playback
 
 Check your Java version:
 
@@ -144,6 +147,16 @@ Audio includes:
 
 Video metadata uses `ffprobe` when available on the system path. If probing fails, the metadata JSON records a failed status instead of crashing the app.
 
+## Media Viewing
+
+Library rows open media inside MediaVault.
+
+Images support fullscreen viewing, zoom controls, previous/next navigation, and slideshow mode.
+
+Videos use VLCJ and support play, pause, seek, and fullscreen controls. Audio uses VLCJ playback with playlist navigation, shuffle, and repeat modes.
+
+VLCJ requires VLC to be installed on the machine and discoverable by the native runtime.
+
 ## Filesystem Monitoring
 
 MediaVault uses `WatchService` to monitor directories that already contain indexed media. It handles:
@@ -163,6 +176,7 @@ MediaVault follows a Clean Architecture-style module boundary:
 - `database` implements persistence using SQLite and Exposed.
 - `metadata` implements JSON metadata extraction.
 - `monitor` implements real-time filesystem monitoring.
+- `player` implements viewing and playback state.
 - `scanner` implements mounted-drive discovery and recursive indexing.
 - `thumbnail` implements asynchronous thumbnail generation and cache lookup.
 - `ui` contains Compose UI code.

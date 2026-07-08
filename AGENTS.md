@@ -6,6 +6,7 @@
 - Keep SQLite, Exposed tables, and repository implementations in `database`.
 - Keep media metadata extraction in `metadata`.
 - Keep real-time filesystem monitoring in `monitor`.
+- Keep media viewing and playback state in `player`.
 - Keep mounted-drive detection and recursive indexing in `scanner`.
 - Keep thumbnail generation and cache management in `thumbnail`.
 - Keep Compose screens and UI state mapping in `ui`.

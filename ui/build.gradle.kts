@@ -6,6 +6,7 @@ plugins {
 
 dependencies {
     implementation(project(":core"))
+    implementation(project(":player"))
 
     implementation(compose.runtime)
     implementation(compose.foundation)
