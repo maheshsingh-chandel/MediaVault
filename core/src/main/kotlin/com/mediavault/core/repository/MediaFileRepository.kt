@@ -10,10 +10,14 @@ interface MediaFileRepository {
     fun countByType(mediaType: MediaType): Long
     fun getStatistics(): MediaStatistics
     fun findById(id: Long): MediaFile?
+    fun findByPath(path: String): MediaFile?
     fun list(limit: Int = 100, offset: Long = 0): List<MediaFile>
     fun search(query: MediaFileQuery): List<MediaFile>
+    fun indexedParentDirectories(): List<String>
     fun save(mediaFile: MediaFile): Long
     fun saveOrIgnore(mediaFile: MediaFile): Boolean
+    fun upsert(mediaFile: MediaFile): Boolean
+    fun deleteByPath(path: String): Boolean
     fun updateMetadata(id: Long, metadataJson: String): Boolean
 }
 

@@ -33,10 +33,17 @@ private class FakeMediaFileRepository(
     override fun countByType(mediaType: MediaType): Long = if (saved.mediaType == mediaType) 1 else 0
     override fun getStatistics(): MediaStatistics = MediaStatistics(1, 1, 0, 0)
     override fun findById(id: Long): MediaFile? = saved.takeIf { it.id == id }
+    override fun findByPath(path: String): MediaFile? = saved.takeIf { it.path == path }
     override fun list(limit: Int, offset: Long): List<MediaFile> = listOf(saved)
     override fun search(query: MediaFileQuery): List<MediaFile> = listOf(saved)
+    override fun indexedParentDirectories(): List<String> = listOf("C:/media")
     override fun save(mediaFile: MediaFile): Long = mediaFile.id
     override fun saveOrIgnore(mediaFile: MediaFile): Boolean = false
+    override fun upsert(mediaFile: MediaFile): Boolean {
+        saved = mediaFile
+        return true
+    }
+    override fun deleteByPath(path: String): Boolean = saved.path == path
     override fun updateMetadata(id: Long, metadataJson: String): Boolean {
         saved = saved.copy(metadataJson = metadataJson)
         return saved.id == id

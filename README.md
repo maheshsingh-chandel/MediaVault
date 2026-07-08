@@ -22,6 +22,7 @@ MediaVault/
 |-- core/       # Domain models and repository interfaces
 |-- database/   # SQLite initialization, Exposed tables, repository implementations
 |-- metadata/   # Image, video, and audio metadata extraction
+|-- monitor/    # WatchService-based real-time filesystem monitoring
 |-- scanner/    # Mounted-drive discovery and recursive media indexing
 |-- thumbnail/  # Async thumbnail generation and cache management
 |-- ui/         # Compose UI screens and navigation
@@ -40,6 +41,7 @@ MediaVault/
 - Koin-based dependency injection
 - Automatic mounted-drive detection
 - Recursive media scanning with `Files.walkFileTree`
+- Real-time filesystem monitoring with `WatchService`
 - Graceful handling for inaccessible folders
 - Live dashboard scan progress
 - Lazy thumbnail generation for Library rows
@@ -142,6 +144,17 @@ Audio includes:
 
 Video metadata uses `ffprobe` when available on the system path. If probing fails, the metadata JSON records a failed status instead of crashing the app.
 
+## Filesystem Monitoring
+
+MediaVault uses `WatchService` to monitor directories that already contain indexed media. It handles:
+
+- Created media files
+- Modified media files
+- Deleted media files
+- Newly created child directories
+
+The monitor updates SQLite directly and increments a UI refresh version so Dashboard and Library data reload automatically. It does not perform a full rescan. If a watched directory or drive becomes unavailable, the monitor drops that watch and keeps running.
+
 ## Architecture
 
 MediaVault follows a Clean Architecture-style module boundary:
@@ -149,6 +162,7 @@ MediaVault follows a Clean Architecture-style module boundary:
 - `core` contains domain models and repository contracts.
 - `database` implements persistence using SQLite and Exposed.
 - `metadata` implements JSON metadata extraction.
+- `monitor` implements real-time filesystem monitoring.
 - `scanner` implements mounted-drive discovery and recursive indexing.
 - `thumbnail` implements asynchronous thumbnail generation and cache lookup.
 - `ui` contains Compose UI code.

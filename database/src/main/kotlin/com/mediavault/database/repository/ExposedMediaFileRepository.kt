@@ -9,6 +9,7 @@ import com.mediavault.core.repository.MediaFileSort
 import com.mediavault.core.repository.SortDirection
 import com.mediavault.database.table.MediaFilesTable
 import java.time.Instant
+import java.nio.file.Path
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.eq
@@ -18,6 +19,7 @@ import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
 
 class ExposedMediaFileRepository(
     private val database: Database,
@@ -56,6 +58,15 @@ class ExposedMediaFileRepository(
             .firstOrNull()
     }
 
+    override fun findByPath(path: String): MediaFile? = transaction(database) {
+        MediaFilesTable
+            .selectAll()
+            .where { MediaFilesTable.path eq path }
+            .limit(1)
+            .map(::toMediaFile)
+            .firstOrNull()
+    }
+
     override fun list(limit: Int, offset: Long): List<MediaFile> = transaction(database) {
         MediaFilesTable
             .selectAll()
@@ -72,6 +83,13 @@ class ExposedMediaFileRepository(
             .limit(query.limit.coerceIn(1, MAX_PAGE_SIZE))
             .offset(query.offset.coerceAtLeast(0))
             .map(::toMediaFile)
+    }
+
+    override fun indexedParentDirectories(): List<String> = transaction(database) {
+        MediaFilesTable
+            .selectAll()
+            .mapNotNull { row -> Path.of(row[MediaFilesTable.path]).parent?.toString() }
+            .distinct()
     }
 
     override fun save(mediaFile: MediaFile): Long = transaction(database) {
@@ -111,6 +129,39 @@ class ExposedMediaFileRepository(
             }
             true
         }
+    }
+
+    override fun upsert(mediaFile: MediaFile): Boolean = transaction(database) {
+        val existing = findByPath(mediaFile.path)
+        if (existing == null) {
+            MediaFilesTable.insert { row ->
+                row[path] = mediaFile.path
+                row[filename] = mediaFile.filename
+                row[extension] = mediaFile.extension
+                row[mediaType] = mediaFile.mediaType.name
+                row[size] = mediaFile.size
+                row[createdDate] = mediaFile.createdDate.toEpochMilli()
+                row[modifiedDate] = mediaFile.modifiedDate.toEpochMilli()
+                row[indexedAt] = mediaFile.indexedAt.toEpochMilli()
+                row[metadataJson] = mediaFile.metadataJson
+            }
+            true
+        } else {
+            MediaFilesTable.update({ MediaFilesTable.id eq existing.id }) { row ->
+                row[filename] = mediaFile.filename
+                row[extension] = mediaFile.extension
+                row[mediaType] = mediaFile.mediaType.name
+                row[size] = mediaFile.size
+                row[createdDate] = mediaFile.createdDate.toEpochMilli()
+                row[modifiedDate] = mediaFile.modifiedDate.toEpochMilli()
+                row[indexedAt] = mediaFile.indexedAt.toEpochMilli()
+                row[metadataJson] = null
+            } > 0
+        }
+    }
+
+    override fun deleteByPath(path: String): Boolean = transaction(database) {
+        MediaFilesTable.deleteWhere { MediaFilesTable.path eq path } > 0
     }
 
     override fun updateMetadata(id: Long, metadataJson: String): Boolean = transaction(database) {

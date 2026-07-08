@@ -79,6 +79,7 @@ fun LibraryScreen(
     repository: MediaFileRepository,
     thumbnailService: ThumbnailService,
     metadataService: MetadataService,
+    refreshVersion: Long,
 ) {
     var searchText by remember { mutableStateOf("") }
     var sort by remember { mutableStateOf(MediaFileSort.MODIFIED_DATE) }
@@ -110,7 +111,7 @@ fun LibraryScreen(
         }
     }
 
-    LaunchedEffect(searchText, sort, direction, page) {
+    LaunchedEffect(searchText, sort, direction, page, refreshVersion) {
         reload()
     }
 

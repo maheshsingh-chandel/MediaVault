@@ -34,13 +34,14 @@ fun MediaVaultApp(
     thumbnailService: ThumbnailService,
     metadataService: MetadataService,
     scanProgress: ScanProgress,
+    fileSystemChangeVersion: Long,
     loadStatistics: () -> MediaStatistics,
     onStartScan: () -> Unit,
 ) {
     var selectedScreen by remember { mutableStateOf(AppScreen.DASHBOARD) }
     var statistics by remember { mutableStateOf(initialStatistics) }
 
-    LaunchedEffect(scanProgress.discoveredMediaFiles, scanProgress.isScanning) {
+    LaunchedEffect(scanProgress.discoveredMediaFiles, scanProgress.isScanning, fileSystemChangeVersion) {
         statistics = withContext(Dispatchers.IO) {
             loadStatistics()
         }
@@ -62,6 +63,7 @@ fun MediaVaultApp(
                         repository = mediaFileRepository,
                         thumbnailService = thumbnailService,
                         metadataService = metadataService,
+                        refreshVersion = fileSystemChangeVersion,
                     )
                     AppScreen.SETTINGS -> SettingsScreen()
                 }

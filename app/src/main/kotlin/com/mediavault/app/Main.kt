@@ -8,6 +8,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.mediavault.core.metadata.MetadataService
+import com.mediavault.core.monitor.FileSystemMonitor
 import com.mediavault.core.repository.MediaFileRepository
 import com.mediavault.core.scanner.MediaScanner
 import com.mediavault.core.thumbnail.ThumbnailService
@@ -15,6 +16,7 @@ import com.mediavault.database.DatabaseConfig
 import com.mediavault.database.DatabaseInitializer
 import com.mediavault.database.repository.ExposedMediaFileRepository
 import com.mediavault.metadata.MediaMetadataService
+import com.mediavault.monitor.WatchServiceFileSystemMonitor
 import com.mediavault.scanner.DefaultMountedDriveProvider
 import com.mediavault.scanner.MountedDriveProvider
 import com.mediavault.scanner.WalkTreeMediaScanner
@@ -43,12 +45,15 @@ fun main() {
     val scanner = koin.get<MediaScanner>()
     val thumbnailService = koin.get<ThumbnailService>()
     val metadataService = koin.get<MetadataService>()
+    val fileSystemMonitor = koin.get<FileSystemMonitor>()
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    fileSystemMonitor.start()
 
     application {
         Window(
             onCloseRequest = {
                 appScope.cancel()
+                fileSystemMonitor.close()
                 thumbnailService.close()
                 exitApplication()
             },
@@ -57,10 +62,19 @@ fun main() {
             var progress by remember {
                 mutableStateOf(scanner.progress.value)
             }
+            var monitorState by remember {
+                mutableStateOf(fileSystemMonitor.state.value)
+            }
 
             LaunchedEffect(scanner) {
                 scanner.progress.collectLatest {
                     progress = it
+                }
+            }
+
+            LaunchedEffect(fileSystemMonitor) {
+                fileSystemMonitor.state.collectLatest {
+                    monitorState = it
                 }
             }
 
@@ -70,11 +84,13 @@ fun main() {
                 thumbnailService = thumbnailService,
                 metadataService = metadataService,
                 scanProgress = progress,
+                fileSystemChangeVersion = monitorState.changeVersion,
                 loadStatistics = repository::getStatistics,
                 onStartScan = {
                     if (!scanner.progress.value.isScanning) {
                         appScope.launch {
                             scanner.scanAllMountedDrives()
+                            fileSystemMonitor.refreshWatchedDirectories()
                         }
                     }
                 },
@@ -91,4 +107,5 @@ private val appModule = module {
     single<MediaScanner> { WalkTreeMediaScanner(get(), get()) }
     single<ThumbnailService> { DefaultThumbnailService() }
     single<MetadataService> { MediaMetadataService(get()) }
+    single<FileSystemMonitor> { WatchServiceFileSystemMonitor(get()) }
 }

@@ -97,6 +97,8 @@ private class FakeMediaFileRepository : MediaFileRepository {
 
     override fun findById(id: Long): MediaFile? = saved.firstOrNull { it.id == id }
 
+    override fun findByPath(path: String): MediaFile? = saved.firstOrNull { it.path == path }
+
     override fun list(limit: Int, offset: Long): List<MediaFile> = saved
         .drop(offset.toInt())
         .take(limit)
@@ -105,6 +107,8 @@ private class FakeMediaFileRepository : MediaFileRepository {
         .filter { it.filename.contains(query.searchText, ignoreCase = true) }
         .drop(query.offset.toInt())
         .take(query.limit)
+
+    override fun indexedParentDirectories(): List<String> = saved.map { java.nio.file.Path.of(it.path).parent.toString() }
 
     override fun save(mediaFile: MediaFile): Long {
         saved += mediaFile
@@ -119,6 +123,18 @@ private class FakeMediaFileRepository : MediaFileRepository {
         saved += mediaFile
         return true
     }
+
+    override fun upsert(mediaFile: MediaFile): Boolean {
+        val index = saved.indexOfFirst { it.path == mediaFile.path }
+        if (index >= 0) {
+            saved[index] = mediaFile
+        } else {
+            saved += mediaFile
+        }
+        return true
+    }
+
+    override fun deleteByPath(path: String): Boolean = saved.removeIf { it.path == path }
 
     override fun updateMetadata(id: Long, metadataJson: String): Boolean {
         val index = saved.indexOfFirst { it.id == id }
