@@ -21,6 +21,7 @@ MediaVault/
 |-- app/        # Application entry point, Compose window, DI startup
 |-- core/       # Domain models and repository interfaces
 |-- database/   # SQLite initialization, Exposed tables, repository implementations
+|-- duplicate/  # SHA-256 hashing and duplicate detection
 |-- metadata/   # Image, video, and audio metadata extraction
 |-- monitor/    # WatchService-based real-time filesystem monitoring
 |-- player/     # Media viewing, VLCJ playback adapters, playlist/slideshow logic
@@ -51,6 +52,7 @@ MediaVault/
 - Image fullscreen viewing, zoom controls, and slideshow navigation
 - VLCJ-backed video playback with play, pause, seek, and fullscreen controls
 - Audio playlist controls with shuffle and repeat modes
+- Duplicate detection using SHA-256 hashes
 
 ## Not Implemented Yet
 
@@ -157,6 +159,18 @@ Videos use VLCJ and support play, pause, seek, and fullscreen controls. Audio us
 
 VLCJ requires VLC to be installed on the machine and discoverable by the native runtime.
 
+## Duplicate Detection
+
+MediaVault stores SHA-256 hashes for media files and groups matching hashes on the Duplicates screen.
+
+Hashes are computed only when needed:
+
+- New files with no hash
+- Files whose size changed
+- Files whose modified timestamp changed
+
+The Duplicates screen hashes pending files in bounded batches, then displays each duplicate group with the earliest modified file as the original and the remaining files as duplicate copies.
+
 ## Filesystem Monitoring
 
 MediaVault uses `WatchService` to monitor directories that already contain indexed media. It handles:
@@ -174,6 +188,7 @@ MediaVault follows a Clean Architecture-style module boundary:
 
 - `core` contains domain models and repository contracts.
 - `database` implements persistence using SQLite and Exposed.
+- `duplicate` implements SHA-256 hashing and duplicate grouping.
 - `metadata` implements JSON metadata extraction.
 - `monitor` implements real-time filesystem monitoring.
 - `player` implements viewing and playback state.

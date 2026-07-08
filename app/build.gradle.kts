@@ -7,6 +7,7 @@ plugins {
 dependencies {
     implementation(project(":core"))
     implementation(project(":database"))
+    implementation(project(":duplicate"))
     implementation(project(":metadata"))
     implementation(project(":monitor"))
     implementation(project(":player"))

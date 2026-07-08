@@ -3,6 +3,7 @@ package com.mediavault.metadata
 import com.mediavault.core.model.MediaFile
 import com.mediavault.core.model.MediaStatistics
 import com.mediavault.core.model.MediaType
+import com.mediavault.core.repository.DuplicateGroup
 import com.mediavault.core.repository.MediaFileQuery
 import com.mediavault.core.repository.MediaFileRepository
 import kotlinx.coroutines.test.runTest
@@ -37,6 +38,8 @@ private class FakeMediaFileRepository(
     override fun list(limit: Int, offset: Long): List<MediaFile> = listOf(saved)
     override fun search(query: MediaFileQuery): List<MediaFile> = listOf(saved)
     override fun indexedParentDirectories(): List<String> = listOf("C:/media")
+    override fun filesNeedingHash(limit: Int): List<MediaFile> = emptyList()
+    override fun duplicateGroups(limit: Int, offset: Long): List<DuplicateGroup> = emptyList()
     override fun save(mediaFile: MediaFile): Long = mediaFile.id
     override fun saveOrIgnore(mediaFile: MediaFile): Boolean = false
     override fun upsert(mediaFile: MediaFile): Boolean {
@@ -46,6 +49,10 @@ private class FakeMediaFileRepository(
     override fun deleteByPath(path: String): Boolean = saved.path == path
     override fun updateMetadata(id: Long, metadataJson: String): Boolean {
         saved = saved.copy(metadataJson = metadataJson)
+        return saved.id == id
+    }
+    override fun updateHash(id: Long, sha256: String, size: Long, modifiedDate: java.time.Instant): Boolean {
+        saved = saved.copy(sha256 = sha256, hashedSize = size, hashedModifiedDate = modifiedDate)
         return saved.id == id
     }
 }

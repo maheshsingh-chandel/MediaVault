@@ -3,6 +3,7 @@ package com.mediavault.monitor
 import com.mediavault.core.model.MediaFile
 import com.mediavault.core.model.MediaStatistics
 import com.mediavault.core.model.MediaType
+import com.mediavault.core.repository.DuplicateGroup
 import com.mediavault.core.repository.MediaFileQuery
 import com.mediavault.core.repository.MediaFileRepository
 import java.nio.file.Path
@@ -108,6 +109,23 @@ private class RecordingRepository(
     override fun list(limit: Int, offset: Long): List<MediaFile> = files.values.drop(offset.toInt()).take(limit)
     override fun search(query: MediaFileQuery): List<MediaFile> = list(query.limit, query.offset)
     override fun indexedParentDirectories(): List<String> = listOf(watchedDirectory.toString())
+    override fun filesNeedingHash(limit: Int): List<MediaFile> = files.values
+        .filter { it.sha256 == null || it.hashedSize != it.size || it.hashedModifiedDate != it.modifiedDate }
+        .take(limit)
+    override fun duplicateGroups(limit: Int, offset: Long): List<DuplicateGroup> = files.values
+        .filter { !it.sha256.isNullOrBlank() }
+        .groupBy { it.sha256.orEmpty() }
+        .filterValues { it.size > 1 }
+        .values
+        .drop(offset.toInt())
+        .take(limit)
+        .map {
+            DuplicateGroup(
+                sha256 = it.first().sha256.orEmpty(),
+                original = it.first(),
+                copies = it.drop(1),
+            )
+        }
 
     override fun save(mediaFile: MediaFile): Long {
         files[mediaFile.path] = mediaFile.copy(id = files.size + 1L)
@@ -133,6 +151,16 @@ private class RecordingRepository(
     override fun updateMetadata(id: Long, metadataJson: String): Boolean {
         val entry = files.entries.firstOrNull { it.value.id == id } ?: return false
         files[entry.key] = entry.value.copy(metadataJson = metadataJson)
+        return true
+    }
+
+    override fun updateHash(id: Long, sha256: String, size: Long, modifiedDate: Instant): Boolean {
+        val entry = files.entries.firstOrNull { it.value.id == id } ?: return false
+        files[entry.key] = entry.value.copy(
+            sha256 = sha256,
+            hashedSize = size,
+            hashedModifiedDate = modifiedDate,
+        )
         return true
     }
 }

@@ -10,12 +10,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.mediavault.core.duplicate.DuplicateDetectionService
 import com.mediavault.core.metadata.MetadataService
 import com.mediavault.core.model.MediaStatistics
 import com.mediavault.core.repository.MediaFileRepository
 import com.mediavault.core.scanner.ScanProgress
 import com.mediavault.core.thumbnail.ThumbnailService
 import com.mediavault.ui.screen.DashboardScreen
+import com.mediavault.ui.screen.DuplicatesScreen
 import com.mediavault.ui.screen.LibraryScreen
 import com.mediavault.ui.screen.SettingsScreen
 import kotlinx.coroutines.Dispatchers
@@ -24,6 +26,7 @@ import kotlinx.coroutines.withContext
 enum class AppScreen {
     DASHBOARD,
     LIBRARY,
+    DUPLICATES,
     SETTINGS,
 }
 
@@ -33,6 +36,7 @@ fun MediaVaultApp(
     mediaFileRepository: MediaFileRepository,
     thumbnailService: ThumbnailService,
     metadataService: MetadataService,
+    duplicateDetectionService: DuplicateDetectionService,
     scanProgress: ScanProgress,
     fileSystemChangeVersion: Long,
     loadStatistics: () -> MediaStatistics,
@@ -63,6 +67,11 @@ fun MediaVaultApp(
                         repository = mediaFileRepository,
                         thumbnailService = thumbnailService,
                         metadataService = metadataService,
+                        refreshVersion = fileSystemChangeVersion,
+                    )
+                    AppScreen.DUPLICATES -> DuplicatesScreen(
+                        repository = mediaFileRepository,
+                        duplicateDetectionService = duplicateDetectionService,
                         refreshVersion = fileSystemChangeVersion,
                     )
                     AppScreen.SETTINGS -> SettingsScreen()

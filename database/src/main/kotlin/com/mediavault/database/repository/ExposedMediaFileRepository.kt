@@ -3,6 +3,7 @@ package com.mediavault.database.repository
 import com.mediavault.core.model.MediaFile
 import com.mediavault.core.model.MediaStatistics
 import com.mediavault.core.model.MediaType
+import com.mediavault.core.repository.DuplicateGroup
 import com.mediavault.core.repository.MediaFileQuery
 import com.mediavault.core.repository.MediaFileRepository
 import com.mediavault.core.repository.MediaFileSort
@@ -92,6 +93,43 @@ class ExposedMediaFileRepository(
             .distinct()
     }
 
+    override fun filesNeedingHash(limit: Int): List<MediaFile> = transaction(database) {
+        MediaFilesTable
+            .selectAll()
+            .orderBy(MediaFilesTable.indexedAt to SortOrder.DESC)
+            .limit(limit.coerceIn(1, MAX_PAGE_SIZE))
+            .map(::toMediaFile)
+            .filter { mediaFile ->
+                mediaFile.sha256 == null ||
+                    mediaFile.hashedSize != mediaFile.size ||
+                    mediaFile.hashedModifiedDate != mediaFile.modifiedDate
+            }
+    }
+
+    override fun duplicateGroups(limit: Int, offset: Long): List<DuplicateGroup> = transaction(database) {
+        MediaFilesTable
+            .selectAll()
+            .orderBy(MediaFilesTable.sha256 to SortOrder.ASC)
+            .limit(DUPLICATE_SCAN_WINDOW)
+            .map(::toMediaFile)
+            .asSequence()
+            .filter { !it.sha256.isNullOrBlank() }
+            .groupBy { it.sha256.orEmpty() }
+            .filterValues { it.size > 1 }
+            .values
+            .drop(offset.coerceAtLeast(0).toInt())
+            .take(limit.coerceIn(1, MAX_PAGE_SIZE))
+            .mapNotNull { files ->
+                val sortedFiles = files.sortedBy { it.modifiedDate }
+                val original = sortedFiles.firstOrNull() ?: return@mapNotNull null
+                DuplicateGroup(
+                    sha256 = original.sha256.orEmpty(),
+                    original = original,
+                    copies = sortedFiles.drop(1),
+                )
+            }
+    }
+
     override fun save(mediaFile: MediaFile): Long = transaction(database) {
         MediaFilesTable.insert { row ->
             row[path] = mediaFile.path
@@ -103,6 +141,9 @@ class ExposedMediaFileRepository(
             row[modifiedDate] = mediaFile.modifiedDate.toEpochMilli()
             row[indexedAt] = mediaFile.indexedAt.toEpochMilli()
             row[metadataJson] = mediaFile.metadataJson
+            row[sha256] = mediaFile.sha256
+            row[hashedSize] = mediaFile.hashedSize
+            row[hashedModifiedDate] = mediaFile.hashedModifiedDate?.toEpochMilli()
         }[MediaFilesTable.id]
     }
 
@@ -126,6 +167,9 @@ class ExposedMediaFileRepository(
                 row[modifiedDate] = mediaFile.modifiedDate.toEpochMilli()
                 row[indexedAt] = mediaFile.indexedAt.toEpochMilli()
                 row[metadataJson] = mediaFile.metadataJson
+                row[sha256] = mediaFile.sha256
+                row[hashedSize] = mediaFile.hashedSize
+                row[hashedModifiedDate] = mediaFile.hashedModifiedDate?.toEpochMilli()
             }
             true
         }
@@ -144,9 +188,13 @@ class ExposedMediaFileRepository(
                 row[modifiedDate] = mediaFile.modifiedDate.toEpochMilli()
                 row[indexedAt] = mediaFile.indexedAt.toEpochMilli()
                 row[metadataJson] = mediaFile.metadataJson
+                row[sha256] = mediaFile.sha256
+                row[hashedSize] = mediaFile.hashedSize
+                row[hashedModifiedDate] = mediaFile.hashedModifiedDate?.toEpochMilli()
             }
             true
         } else {
+            val fileStateChanged = existing.size != mediaFile.size || existing.modifiedDate != mediaFile.modifiedDate
             MediaFilesTable.update({ MediaFilesTable.id eq existing.id }) { row ->
                 row[filename] = mediaFile.filename
                 row[extension] = mediaFile.extension
@@ -156,6 +204,11 @@ class ExposedMediaFileRepository(
                 row[modifiedDate] = mediaFile.modifiedDate.toEpochMilli()
                 row[indexedAt] = mediaFile.indexedAt.toEpochMilli()
                 row[metadataJson] = null
+                if (fileStateChanged) {
+                    row[sha256] = null
+                    row[hashedSize] = null
+                    row[hashedModifiedDate] = null
+                }
             } > 0
         }
     }
@@ -170,6 +223,14 @@ class ExposedMediaFileRepository(
         } > 0
     }
 
+    override fun updateHash(id: Long, sha256: String, size: Long, modifiedDate: Instant): Boolean = transaction(database) {
+        MediaFilesTable.update({ MediaFilesTable.id eq id }) { row ->
+            row[MediaFilesTable.sha256] = sha256
+            row[hashedSize] = size
+            row[hashedModifiedDate] = modifiedDate.toEpochMilli()
+        } > 0
+    }
+
     private fun toMediaFile(row: ResultRow): MediaFile = MediaFile(
         id = row[MediaFilesTable.id],
         path = row[MediaFilesTable.path],
@@ -181,6 +242,9 @@ class ExposedMediaFileRepository(
         modifiedDate = Instant.ofEpochMilli(row[MediaFilesTable.modifiedDate]),
         indexedAt = Instant.ofEpochMilli(row[MediaFilesTable.indexedAt]),
         metadataJson = row[MediaFilesTable.metadataJson],
+        sha256 = row[MediaFilesTable.sha256],
+        hashedSize = row[MediaFilesTable.hashedSize],
+        hashedModifiedDate = row[MediaFilesTable.hashedModifiedDate]?.let(Instant::ofEpochMilli),
     )
 
     private fun org.jetbrains.exposed.v1.jdbc.Query.applySearch(searchText: String) = apply {
@@ -209,5 +273,6 @@ class ExposedMediaFileRepository(
 
     private companion object {
         const val MAX_PAGE_SIZE = 500
+        const val DUPLICATE_SCAN_WINDOW = 20_000
     }
 }

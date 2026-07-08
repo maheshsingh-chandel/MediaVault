@@ -7,6 +7,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import com.mediavault.core.duplicate.DuplicateDetectionService
 import com.mediavault.core.metadata.MetadataService
 import com.mediavault.core.monitor.FileSystemMonitor
 import com.mediavault.core.repository.MediaFileRepository
@@ -15,6 +16,7 @@ import com.mediavault.core.thumbnail.ThumbnailService
 import com.mediavault.database.DatabaseConfig
 import com.mediavault.database.DatabaseInitializer
 import com.mediavault.database.repository.ExposedMediaFileRepository
+import com.mediavault.duplicate.DefaultDuplicateDetectionService
 import com.mediavault.metadata.MediaMetadataService
 import com.mediavault.monitor.WatchServiceFileSystemMonitor
 import com.mediavault.scanner.DefaultMountedDriveProvider
@@ -45,6 +47,7 @@ fun main() {
     val scanner = koin.get<MediaScanner>()
     val thumbnailService = koin.get<ThumbnailService>()
     val metadataService = koin.get<MetadataService>()
+    val duplicateDetectionService = koin.get<DuplicateDetectionService>()
     val fileSystemMonitor = koin.get<FileSystemMonitor>()
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     fileSystemMonitor.start()
@@ -83,6 +86,7 @@ fun main() {
                 mediaFileRepository = repository,
                 thumbnailService = thumbnailService,
                 metadataService = metadataService,
+                duplicateDetectionService = duplicateDetectionService,
                 scanProgress = progress,
                 fileSystemChangeVersion = monitorState.changeVersion,
                 loadStatistics = repository::getStatistics,
@@ -107,5 +111,6 @@ private val appModule = module {
     single<MediaScanner> { WalkTreeMediaScanner(get(), get()) }
     single<ThumbnailService> { DefaultThumbnailService() }
     single<MetadataService> { MediaMetadataService(get()) }
+    single<DuplicateDetectionService> { DefaultDuplicateDetectionService(get()) }
     single<FileSystemMonitor> { WatchServiceFileSystemMonitor(get()) }
 }

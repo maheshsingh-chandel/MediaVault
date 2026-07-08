@@ -3,6 +3,7 @@ package com.mediavault.scanner
 import com.mediavault.core.model.MediaFile
 import com.mediavault.core.model.MediaStatistics
 import com.mediavault.core.model.MediaType
+import com.mediavault.core.repository.DuplicateGroup
 import com.mediavault.core.repository.MediaFileQuery
 import com.mediavault.core.repository.MediaFileRepository
 import java.nio.file.Path
@@ -110,6 +111,12 @@ private class FakeMediaFileRepository : MediaFileRepository {
 
     override fun indexedParentDirectories(): List<String> = saved.map { java.nio.file.Path.of(it.path).parent.toString() }
 
+    override fun filesNeedingHash(limit: Int): List<MediaFile> = saved
+        .filter { it.sha256 == null || it.hashedSize != it.size || it.hashedModifiedDate != it.modifiedDate }
+        .take(limit)
+
+    override fun duplicateGroups(limit: Int, offset: Long): List<DuplicateGroup> = emptyList()
+
     override fun save(mediaFile: MediaFile): Long {
         saved += mediaFile
         savedPaths += mediaFile.path
@@ -140,6 +147,17 @@ private class FakeMediaFileRepository : MediaFileRepository {
         val index = saved.indexOfFirst { it.id == id }
         if (index < 0) return false
         saved[index] = saved[index].copy(metadataJson = metadataJson)
+        return true
+    }
+
+    override fun updateHash(id: Long, sha256: String, size: Long, modifiedDate: java.time.Instant): Boolean {
+        val index = saved.indexOfFirst { it.id == id }
+        if (index < 0) return false
+        saved[index] = saved[index].copy(
+            sha256 = sha256,
+            hashedSize = size,
+            hashedModifiedDate = modifiedDate,
+        )
         return true
     }
 }

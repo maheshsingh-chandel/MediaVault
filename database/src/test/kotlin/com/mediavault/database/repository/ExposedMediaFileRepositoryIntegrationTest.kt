@@ -80,6 +80,45 @@ class ExposedMediaFileRepositoryIntegrationTest {
         assertEquals("""{"image":{"width":100}}""", repository.findById(id)?.metadataJson)
     }
 
+    @Test
+    fun tracksHashStateAndDuplicateGroups() {
+        val repository = createRepository()
+        val firstId = repository.save(mediaFile(path = "C:/media/a.jpg", filename = "a.jpg", modifiedDate = Instant.parse("2024-01-01T00:00:00Z")))
+        val secondId = repository.save(mediaFile(path = "C:/media/b.jpg", filename = "b.jpg", modifiedDate = Instant.parse("2024-01-02T00:00:00Z")))
+        val thirdId = repository.save(mediaFile(path = "C:/media/c.jpg", filename = "c.jpg"))
+
+        repository.updateHash(firstId, "abc", 100, Instant.parse("2024-01-01T00:00:00Z"))
+        repository.updateHash(secondId, "abc", 100, Instant.parse("2024-01-02T00:00:00Z"))
+        repository.updateHash(thirdId, "xyz", 100, Instant.parse("2024-01-01T00:00:00Z"))
+
+        val groups = repository.duplicateGroups()
+
+        assertEquals(1, groups.size)
+        assertEquals("abc", groups.first().sha256)
+        assertEquals("a.jpg", groups.first().original.filename)
+        assertEquals(listOf("b.jpg"), groups.first().copies.map { it.filename })
+    }
+
+    @Test
+    fun upsertClearsHashWhenFileStateChanges() {
+        val repository = createRepository()
+        val id = repository.save(mediaFile(path = "C:/media/state.jpg", filename = "state.jpg"))
+        repository.updateHash(id, "abc", 100, Instant.parse("2024-01-01T00:00:00Z"))
+
+        repository.upsert(
+            mediaFile(
+                path = "C:/media/state.jpg",
+                filename = "state.jpg",
+                size = 200,
+                modifiedDate = Instant.parse("2024-01-03T00:00:00Z"),
+            ),
+        )
+
+        val updated = repository.findById(id)
+        assertEquals(null, updated?.sha256)
+        assertEquals(1, repository.filesNeedingHash().size)
+    }
+
     private fun createRepository(): ExposedMediaFileRepository {
         val databaseFile = createTempFile("mediavault-repository", ".db").toFile()
         databaseFile.deleteOnExit()

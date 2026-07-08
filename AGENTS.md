@@ -4,6 +4,7 @@
 
 - Keep domain models and repository interfaces in `core`.
 - Keep SQLite, Exposed tables, and repository implementations in `database`.
+- Keep duplicate hashing and duplicate grouping in `duplicate`.
 - Keep media metadata extraction in `metadata`.
 - Keep real-time filesystem monitoring in `monitor`.
 - Keep media viewing and playback state in `player`.
